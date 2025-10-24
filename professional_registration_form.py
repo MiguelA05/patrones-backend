@@ -14,8 +14,8 @@ from validators.patterns import (
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Professional Network Registration",
-    page_icon="💼",
+    page_title="LaboraUQ",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
