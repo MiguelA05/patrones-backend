@@ -1,18 +1,31 @@
+"""
+Formulario de Registro Profesional - LaboraUQ
+
+Este módulo contiene la aplicación Streamlit para el registro de profesionales
+en la plataforma LaboraUQ. Incluye validación en tiempo real de campos,
+interfaz adaptada a los colores del logo y gestión de campos dinámicos.
+
+Autor: LaboraUQ Development Team
+Fecha: 2024
+"""
+
 import streamlit as st
 import sys
 import os
-from datetime import datetime
+import base64
 
-# Agregar el directorio app al path para importar los módulos
-sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
+# Agregar el directorio raíz al path para importar los módulos
+sys.path.insert(0, os.path.dirname(__file__))
 
-from validators.patterns import (
+from app.validators.patterns import (
     validate_email, validate_phone, validate_date, 
     validate_dni, validate_postal_code, validate_url,
     validate_all_fields
 )
 
-# Configuración de la página
+# =============================================================================
+# CONFIGURACIÓN DE LA PÁGINA
+# =============================================================================
 st.set_page_config(
     page_title="LaboraUQ",
     page_icon="🎓",
@@ -20,16 +33,72 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS personalizado para estilo profesional
+# =============================================================================
+# ESTILOS CSS PERSONALIZADOS
+# =============================================================================
+# Los estilos están adaptados a la paleta de colores del logo LaboraUQ:
+# - Azul oscuro (#1a365d, #2c5282): Colores principales
+# - Verde (#10b981, #059669): Acentos y elementos interactivos
+# - Fondo oscuro (#0f172a, #1e293b): Para mejor contraste y legibilidad
 st.markdown("""
 <style>
-    /* Estilo profesional tipo LinkedIn */
+    /* Fondo oscuro para mejor contraste */
+    .stApp {
+        background-color: #0f172a;
+    }
+    
+    .main .block-container {
+        background-color: #1e293b;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
+    /* Estilo adaptado a los colores del logo LaboraUQ */
     .main-header {
-        background: linear-gradient(135deg, #0077b5 0%, #005885 100%);
-        padding: 2rem 0;
+        background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #1a365d 100%);
+        padding: 3rem 0;
         margin: -1rem -1rem 2rem -1rem;
         border-radius: 0 0 15px 15px;
-        box-shadow: 0 4px 20px rgba(0, 119, 181, 0.3);
+        box-shadow: 0 4px 20px rgba(26, 54, 93, 0.4);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .logo-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.0rem;
+        margin-bottom: 0.0rem;
+    }
+    
+    .logo-img {
+        height: 220px;
+        width: auto;
+        max-width: 500px;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+        background: transparent;
+        mix-blend-mode: normal;
+    }
+    
+    @media (max-width: 768px) {
+        .logo-img {
+            height: 140px;
+            max-width: 350px;
+        }
+        .main-header {
+            padding: 2rem 0;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .logo-img {
+            height: 120px;
+            max-width: 300px;
+        }
     }
     
     .main-header h1 {
@@ -45,27 +114,23 @@ st.markdown("""
         color: rgba(255, 255, 255, 0.9);
         text-align: center;
         font-size: 1.1rem;
-        margin: 0.5rem 0 0 0;
+        font-weight: bold;
+        margin: 0.2rem 0 0 0;
     }
     
     .section-title {
-        color: #0077b5;
-        font-size: 1.3rem;
+        color: #ffffff;
+        font-size: 1.4rem;
         font-weight: 600;
         margin: 2rem 0 1rem 0;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e1e5e9;
-    }
-    
-    .url-input-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
+        border-bottom: 2px solid #10b981;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        letter-spacing: 0.5px;
     }
     
     .add-url-btn {
-        background: #0077b5;
+        background: #10b981;
         color: white;
         border: none;
         border-radius: 50%;
@@ -77,7 +142,7 @@ st.markdown("""
     }
     
     .add-url-btn:hover {
-        background: #005885;
+        background: #059669;
         transform: scale(1.1);
     }
     
@@ -99,7 +164,7 @@ st.markdown("""
     }
     
     .validation-success {
-        color: #28a745;
+        color: #10b981;
         font-size: 0.9rem;
     }
     
@@ -117,12 +182,12 @@ st.markdown("""
         background: #f8f9fa;
         padding: 1rem;
         border-radius: 10px;
-        border-left: 4px solid #0077b5;
+        border-left: 4px solid #1a365d;
         margin: 1rem 0;
     }
     
     .validation-summary h4 {
-        color: #0077b5;
+        color: #1a365d;
         margin: 0 0 0.5rem 0;
     }
     
@@ -139,8 +204,8 @@ st.markdown("""
     }
     
     .stat-valid {
-        background: #d4edda;
-        color: #155724;
+        background: #d1fae5;
+        color: #065f46;
     }
     
     .stat-invalid {
@@ -153,75 +218,162 @@ st.markdown("""
         color: #856404;
     }
     
-    .submit-btn {
-        background: linear-gradient(135deg, #0077b5 0%, #005885 100%);
+    /* Botones de Streamlit con colores del logo */
+    .stButton > button {
+        background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #10b981 100%);
         color: white;
         border: none;
-        padding: 1rem 3rem;
-        border-radius: 25px;
-        font-size: 1.1rem;
-        font-weight: 600;
-        cursor: pointer;
         transition: all 0.3s ease;
-        width: 100%;
-        margin-top: 2rem;
     }
     
-    .submit-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0, 119, 181, 0.4);
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #2c5282 0%, #1a365d 50%, #059669 100%);
+        box-shadow: 0 4px 12px rgba(26, 54, 93, 0.4);
     }
     
-    .success-message {
-        background: #d4edda;
-        color: #155724;
-        padding: 1rem;
-        border-radius: 10px;
-        border: 1px solid #c3e6cb;
-        margin: 1rem 0;
+    /* Checkbox con colores del logo */
+    .stCheckbox > label {
+        color: #1a365d;
     }
     
-    .error-message {
-        background: #f8d7da;
-        color: #721c24;
-        padding: 1rem;
-        border-radius: 10px;
-        border: 1px solid #f5c6cb;
-        margin: 1rem 0;
+    .stCheckbox > div[data-baseweb="checkbox"] {
+        background-color: #10b981;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Header principal
-st.markdown("""
-<div class="main-header">
-    <h1>LaboraUQ</h1>
-    <p>Únete a nuestra comunidad profesional y conecta con oportunidades</p>
-</div>
-""", unsafe_allow_html=True)
+def load_logo():
+    """
+    Carga el logo de LaboraUQ desde el directorio de assets.
+    
+    Busca el logo en diferentes formatos (PNG, SVG) y ubicaciones.
+    Si encuentra el logo, lo convierte a base64 para mostrarlo en el header.
+    
+    Returns:
+        tuple: (logo_data, mime_type) si se encuentra el logo, (None, None) en caso contrario
+    """
+    logo_formats = ["laborauq_logo.png", "laborauq_logo.svg", "logo.png", "logo.svg"]
+    assets_dir = os.path.join(os.path.dirname(__file__), "assets", "images")
+    
+    for logo_file in logo_formats:
+        potential_path = os.path.join(assets_dir, logo_file)
+        if os.path.exists(potential_path):
+            try:
+                with open(potential_path, "rb") as img_file:
+                    img_data = base64.b64encode(img_file.read()).decode()
+                
+                if logo_file.endswith(".svg"):
+                    mime_type = "image/svg+xml"
+                else:
+                    mime_type = "image/png"
+                
+                return img_data, mime_type
+            except Exception:
+                continue
+    
+    return None, None
 
-# Inicializar el estado de la sesión para URLs dinámicas
-if 'portfolio_urls' not in st.session_state:
-    st.session_state.portfolio_urls = [""]
 
-if 'form_submitted' not in st.session_state:
-    st.session_state.form_submitted = False
+def render_header():
+    """
+    Renderiza el header principal de la aplicación con el logo de LaboraUQ.
+    
+    Si el logo está disponible, lo muestra junto con el subtítulo.
+    Si no está disponible, muestra solo el texto del título y subtítulo.
+    """
+    logo_data, logo_mime_type = load_logo()
+    
+    if logo_data and logo_mime_type:
+        st.markdown(f"""
+        <div class="main-header">
+            <div class="logo-container">
+                <img src="data:{logo_mime_type};base64,{logo_data}" class="logo-img" alt="LaboraUQ Logo" />
+            </div>
+            <p>Únete a nuestra comunidad profesional y conecta con oportunidades</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="main-header">
+            <h1>LaboraUQ</h1>
+            <p>Únete a nuestra comunidad profesional y conecta con oportunidades</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-# Inicializar estado para campos interactuados
-if 'fields_interacted' not in st.session_state:
-    st.session_state.fields_interacted = set()
 
-# Función para agregar nueva URL
+# Renderizar header principal
+render_header()
+
+# =============================================================================
+# INICIALIZACIÓN DEL ESTADO DE LA SESIÓN
+# =============================================================================
+
+def initialize_session_state():
+    """
+    Inicializa las variables de estado de la sesión de Streamlit.
+    
+    Variables inicializadas:
+    - portfolio_urls: Lista de URLs de portafolio (inicia con un campo vacío)
+    - fields_interacted: Conjunto de nombres de campos que han sido interactuados
+    """
+    if 'portfolio_urls' not in st.session_state:
+        st.session_state.portfolio_urls = [""]
+    
+    if 'fields_interacted' not in st.session_state:
+        st.session_state.fields_interacted = set()
+
+
+initialize_session_state()
+
+
+# =============================================================================
+# FUNCIONES DE GESTIÓN DE URLs DE PORTAFOLIO
+# =============================================================================
+
 def add_portfolio_url():
+    """
+    Agrega un nuevo campo de URL de portafolio a la lista dinámica.
+    
+    La función agrega una cadena vacía a la lista de URLs en el estado
+    de la sesión, permitiendo que el usuario agregue múltiples URLs.
+    """
     st.session_state.portfolio_urls.append("")
 
-# Función para remover URL
-def remove_portfolio_url(index):
+
+def remove_portfolio_url(index: int):
+    """
+    Elimina un campo de URL de portafolio de la lista.
+    
+    Args:
+        index (int): Índice del campo a eliminar
+        
+    Nota:
+        No permite eliminar el último campo (siempre debe haber al menos uno)
+    """
     if len(st.session_state.portfolio_urls) > 1:
         st.session_state.portfolio_urls.pop(index)
 
-# Función mejorada para validar campo en tiempo real
-def validate_field(value, validator_func, field_name, is_required=False):
+
+# =============================================================================
+# FUNCIONES DE VALIDACIÓN Y FEEDBACK VISUAL
+# =============================================================================
+
+def validate_field(value: str, validator_func, field_name: str, is_required: bool = False) -> tuple:
+    """
+    Valida un campo individual y retorna el resultado de la validación.
+    
+    Args:
+        value (str): Valor del campo a validar
+        validator_func: Función de validación a aplicar (ej: validate_email)
+        field_name (str): Nombre del campo para mensajes de error
+        is_required (bool): Indica si el campo es obligatorio
+        
+    Returns:
+        tuple: (icono, mensaje, estado) donde:
+            - icono: Emoji o símbolo representativo (✅, ❌, ⚠️)
+            - mensaje: Mensaje descriptivo del estado
+            - estado: "success", "error", "warning" o "neutral"
+    """
     if not value:
         if is_required:
             return "⚠️", f"{field_name} es obligatorio", "warning"
@@ -234,8 +386,17 @@ def validate_field(value, validator_func, field_name, is_required=False):
     else:
         return "❌", f"{field_name} inválido", "error"
 
-# Función para mostrar feedback visual solo cuando hay cambios
-def show_validation_feedback_conditional(icon, message, status, show_empty=False):
+
+def show_validation_feedback_conditional(icon: str, message: str, status: str, show_empty: bool = False):
+    """
+    Muestra feedback visual de validación con estilos personalizados.
+    
+    Args:
+        icon (str): Icono o emoji a mostrar
+        message (str): Mensaje de validación
+        status (str): Estado de validación ("success", "error", "warning", "neutral")
+        show_empty (bool): Si es True, muestra espacio en blanco para estado neutral
+    """
     if status == "success":
         st.markdown(f'<div class="validation-success">{icon} {message}</div>', unsafe_allow_html=True)
     elif status == "error":
@@ -245,9 +406,23 @@ def show_validation_feedback_conditional(icon, message, status, show_empty=False
     elif show_empty and status == "neutral":
         st.markdown('<div style="height: 1.5rem;"></div>', unsafe_allow_html=True)
 
-# Función inteligente para mostrar validación solo cuando es necesario
-def show_smart_validation(field_name, value, validator_func, is_required=False, display_name=None):
-    # Usar display_name si se proporciona, sino usar field_name
+
+def show_smart_validation(field_name: str, value: str, validator_func, is_required: bool = False, display_name: str = None):
+    """
+    Muestra validación inteligente que solo aparece cuando es necesario.
+    
+    Esta función evita mostrar mensajes de validación hasta que el usuario
+    haya interactuado con el campo o haya ingresado un valor. Esto mejora
+    la experiencia de usuario al no mostrar errores prematuramente.
+    
+    Args:
+        field_name (str): Nombre interno del campo (usado para tracking)
+        value (str): Valor actual del campo
+        validator_func: Función de validación a aplicar
+        is_required (bool): Indica si el campo es obligatorio
+        display_name (str, optional): Nombre a mostrar en mensajes. 
+                                     Si es None, usa field_name
+    """
     display_field_name = display_name if display_name else field_name
     
     # Solo mostrar mensajes si el campo ha sido interactuado o tiene valor
@@ -264,17 +439,32 @@ def show_smart_validation(field_name, value, validator_func, is_required=False, 
         icon, message, status = validate_field(value, validator_func, display_field_name, is_required)
         show_validation_feedback_conditional(icon, message, status)
 
-# Función para mostrar feedback visual mejorado
-def show_validation_feedback(icon, message, status):
-    if status == "success":
-        st.markdown(f'<div class="validation-success">{icon} {message}</div>', unsafe_allow_html=True)
-    elif status == "error":
-        st.markdown(f'<div class="validation-error">{icon} {message}</div>', unsafe_allow_html=True)
-    elif status == "warning":
-        st.markdown(f'<div class="validation-warning">{icon} {message}</div>', unsafe_allow_html=True)
-
-# Función para validar todos los campos y mostrar resumen
-def validate_all_form_fields():
+def validate_all_form_fields(nombre: str, email: str, telefono: str, profesion: str, 
+                             experiencia: str, fecha_nacimiento: str, dni: str, 
+                             codigo_postal: str) -> dict:
+    """
+    Valida todos los campos del formulario y genera un resumen de validación.
+    
+    Esta función valida tanto campos obligatorios como opcionales, aplicando
+    las funciones de validación correspondientes según el tipo de campo.
+    
+    Args:
+        nombre (str): Nombre completo del usuario
+        email (str): Correo electrónico
+        telefono (str): Número de teléfono
+        profesion (str): Profesión del usuario
+        experiencia (str): Años de experiencia
+        fecha_nacimiento (str): Fecha de nacimiento (opcional)
+        dni (str): DNI o pasaporte (opcional)
+        codigo_postal (str): Código postal (opcional)
+        
+    Returns:
+        dict: Diccionario con el resumen de validación conteniendo:
+            - valid (int): Cantidad de campos válidos
+            - invalid (int): Cantidad de campos inválidos
+            - required_missing (int): Cantidad de campos obligatorios faltantes
+            - total (int): Total de campos validados
+    """
     validation_summary = {
         'valid': 0,
         'invalid': 0,
@@ -346,11 +536,18 @@ def validate_all_form_fields():
     
     return validation_summary
 
+# =============================================================================
+# FORMULARIO PRINCIPAL
+# =============================================================================
+
 # Contenedor del formulario
 with st.container():
     st.markdown('<div>', unsafe_allow_html=True)
     
-    # Información Personal
+    # -------------------------------------------------------------------------
+    # SECCIÓN: Información Personal
+    # Campos básicos del usuario: nombre, email, teléfono y fecha de nacimiento
+    # -------------------------------------------------------------------------
     st.markdown('<div class="section-title">Información Personal</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
@@ -390,7 +587,10 @@ with st.container():
         # Validación inteligente de la fecha (solo muestra mensajes cuando es necesario)
         show_smart_validation("fecha_nacimiento", fecha_nacimiento, validate_date, display_name="Fecha")
     
-    # Información Profesional
+    # -------------------------------------------------------------------------
+    # SECCIÓN: Información Profesional
+    # Datos relacionados con la carrera profesional del usuario
+    # -------------------------------------------------------------------------
     st.markdown('<div class="section-title">Información Profesional</div>', unsafe_allow_html=True)
     
     col3, col4 = st.columns(2)
@@ -420,7 +620,10 @@ with st.container():
             help="Tu ubicación actual"
         )
     
-    # Información de Documentos
+    # -------------------------------------------------------------------------
+    # SECCIÓN: Documentos
+    # Documentos de identificación y códigos postales
+    # -------------------------------------------------------------------------
     st.markdown('<div class="section-title">Documentos</div>', unsafe_allow_html=True)
     
     col5, col6 = st.columns(2)
@@ -445,7 +648,11 @@ with st.container():
         # Validación inteligente del código postal (solo muestra mensajes cuando es necesario)
         show_smart_validation("codigo_postal", codigo_postal, validate_postal_code, display_name="Código Postal")
     
-    # Enlaces de Portafolio (Campo Dinámico)
+    # -------------------------------------------------------------------------
+    # SECCIÓN: Enlaces de Portafolio (Campos Dinámicos)
+    # Permite agregar múltiples URLs de proyectos, GitHub, LinkedIn, etc.
+    # Los campos son dinámicos: el usuario puede agregar o eliminar URLs
+    # -------------------------------------------------------------------------
     st.markdown('<div class="section-title">Enlaces de Portafolio o Proyectos Personales</div>', unsafe_allow_html=True)
     
     st.markdown("""
@@ -492,7 +699,10 @@ with st.container():
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Información Adicional
+    # -------------------------------------------------------------------------
+    # SECCIÓN: Información Adicional
+    # Campos opcionales para biografía y habilidades del usuario
+    # -------------------------------------------------------------------------
     st.markdown('<div class="section-title">Información Adicional</div>', unsafe_allow_html=True)
     
     biografia = st.text_area(
@@ -508,10 +718,16 @@ with st.container():
         help="Separa las habilidades con comas"
     )
     
-    # Resumen de Validación
+    # -------------------------------------------------------------------------
+    # SECCIÓN: Estado de Validación
+    # Muestra un resumen visual del estado de validación de todos los campos
+    # -------------------------------------------------------------------------
     st.markdown('<div class="section-title">Estado de Validación</div>', unsafe_allow_html=True)
     
-    validation_summary = validate_all_form_fields()
+    validation_summary = validate_all_form_fields(
+        nombre, email, telefono, profesion, experiencia,
+        fecha_nacimiento, dni, codigo_postal
+    )
     
     st.markdown(f"""
     <div class="validation-summary">
@@ -525,7 +741,10 @@ with st.container():
     </div>
     """, unsafe_allow_html=True)
     
-    # Términos y Condiciones
+    # -------------------------------------------------------------------------
+    # SECCIÓN: Términos y Condiciones
+    # Checkboxes para aceptar términos y recibir notificaciones
+    # -------------------------------------------------------------------------
     st.markdown('<div class="section-title">📋 Términos y Condiciones</div>', unsafe_allow_html=True)
     
     acepto_terminos = st.checkbox(
@@ -538,7 +757,10 @@ with st.container():
         help="Te enviaremos ofertas de trabajo relevantes"
     )
     
-    # Botón de envío
+    # -------------------------------------------------------------------------
+    # BOTÓN DE ENVÍO Y PROCESAMIENTO DEL FORMULARIO
+    # Valida todos los campos y procesa el registro si es exitoso
+    # -------------------------------------------------------------------------
     if st.button("🚀 Completar Registro", key="submit_btn"):
         # Validar campos obligatorios
         campos_obligatorios = {
@@ -631,7 +853,9 @@ with st.container():
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Footer
+# =============================================================================
+# FOOTER
+# =============================================================================
 st.markdown("""
 <div style="text-align: center; color: #6c757d; margin-top: 3rem; padding: 2rem;">
     <p>Professional Network - Conectando talentos con oportunidades</p>
